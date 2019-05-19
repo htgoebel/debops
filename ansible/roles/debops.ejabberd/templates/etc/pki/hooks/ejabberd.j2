@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# {{ ansible_managed }}
+
+# Reload or restart ejabberd on a certificate state change
+
+set -o nounset -o pipefail -o errexit
+
+ejabberd_config="/etc/ejabberd/ejabberd.yml"
+ejabberd_action="{{ ejabberd__pki_hook_action }}"
+
+# Check if current PKI realm is used by the 'ejabberd' webserver
+certificate=$(grep -r "${PKI_SCRIPT_DEFAULT_CRT:-}" ${ejabberd_config} || true)
+
+# Get list of current realm states
+states=( $(echo "${PKI_SCRIPT_STATE:-}" | tr "," " ") )
+
+if [ -n "${certificate}" ] && [[ ${states[*]} ]] ; then
+
+    for state in "${states[@]}" ; do
+
+        if [ "${state}" = "changed-certificate" ] || [ "${state}" = "changed-dhparam" ] ; then
+
+            # Check if current init is systemd
+            if pidof systemd > /dev/null 2>&1 ; then
+
+                ejabberd_state="$(systemctl is-active ejabberd.service)"
+                if [ "${ejabberd_state}" = "active" ] ; then
+                    if /usr/sbin/ejabberd -c "${ejabberd_config}" -t > /dev/null 2>&1 ; then
+                        systemctl "${ejabberd_action}" ejabberd.service
+                    fi
+                fi
+            fi
+
+            break
+        fi
+
+    done
+
+fi

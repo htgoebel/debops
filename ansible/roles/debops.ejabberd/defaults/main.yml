@@ -1,0 +1,735 @@
+# -*- indent-tabs-mode: nil -*-
+# .. vim: foldmarker=[[[,]]]:foldmethod=marker
+---
+
+# debops.ejabberd default variables [[[
+# ====================================
+
+# .. contents:: Sections
+#    :local:
+#
+# .. include:: ../../../includes/global.rst
+
+# .. envvar:: ejabberd__deploy_state [[[
+#
+# Set to `absent` to disable and uninstall this role
+ejabberd__deploy_state: "present"
+
+                                                                   # ]]]
+
+# TODO: Implement a senseful way to configure virutal hosts which have
+# different settings. Think about not at all defining global modules
+# (``modules: {}``), but only use ``host_config` or
+# ``append_host_config`` and replicate the "global" config for each
+# virtual host. This might create a less nice config-file, but might
+# be easier to create.
+
+
+# XMPP features to use [[[
+# -----------------------------
+#
+# Here the admin enables and disables the features she wants.
+# TODO: Think about whether this shall become a list of strings. e.g.
+#   ejabberd_features: [ "register", "register_web", "upload" ]
+ejabberd_enable_register: false
+ejabberd_enable_register_web: false
+ejabberd_enable_upload: true
+ejabberd_enable_muc: true
+ejabberd__http_behind_proxy: false
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__domain [[[
+#
+# The hosts's DNS domain name used in the Ejabberd configuration.
+ejabberd__domain: '{{ ansible_local.core.domain
+                     if (ansible_local|d() and ansible_local.core|d() and
+                         ansible_local.core.domain|d())
+                     else (ansible_domain if ansible_domain else ansible_hostname) }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__admins [[[
+#
+# Admin e-mail and Jabber-ID of this ejabberd instance
+ejabberd__admin_mail: 'xmpp@{{ ejabberd__domain }}'
+ejabberd__admin_xmpp: 'xmpp@{{ ejabberd__domain }}'
+
+
+# Packages and installation [[[
+# -----------------------------
+
+# .. envvar:: ejabberd__base_packages [[[
+#
+# List of base packages to install.
+ejabberd__base_packages:
+  - 'ejabberd'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__packages [[[
+#
+# List of additional APT packages to install with Ejabberd.
+ejabberd__packages: []
+                                                                   # ]]]
+                                                                   # ]]]
+# PKI [[[
+# -------
+
+# .. envvar:: ejabberd__pki [[[
+#
+# Enable or disable support for PKI/SSL/TLS in ejabberd.
+# Defaults to ``True`` if :ref:`debops.pki` is enabled on the remote host.
+ejabberd__pki: '{{ ansible_local|d() and ansible_local.pki|d() and
+               (ansible_local.pki.enabled|d() | bool) }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__pki_realm_path [[[
+#
+# Directory path where PKI realm live.
+ejabberd__pki_realm_path: '{{ ansible_local.pki.path
+                            if (ansible_local|d() and ansible_local.pki|d() and
+                                ansible_local.pki.path|d())
+                            else "/etc/pki/realms" }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__pki_realm [[[
+#
+# Default PKI realm to use.
+ejabberd__pki_realm: '{{ ansible_local.pki.realm
+                       if (ansible_local|d() and ansible_local.pki|d() and
+                           ansible_local.pki.realm|d())
+                       else "domain" }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__pki_crt_filename [[[
+#
+# Default CRT file name to use.
+ejabberd__pki_crt_filename: '{{ ansible_local.pki.crt
+                              if (ansible_local|d() and ansible_local.pki|d() and
+                                  ansible_local.pki.crt|d())
+                              else "default.crt" }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__pki_key_filename [[[
+#
+# Default private key file name to use.
+ejabberd__pki_key_filename: '{{ ansible_local.pki.key
+                              if (ansible_local|d() and ansible_local.pki|d() and
+                                  ansible_local.pki.key|d())
+                              else "default.key" }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__pki_hook_name [[[
+#
+# Name of the hook script which will be stored in hook directory.
+ejabberd__pki_hook_name: 'ejabberd'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__pki_hook_path [[[
+#
+# Directory with PKI hooks.
+ejabberd__pki_hook_path: '{{ ansible_local.pki.hooks
+                         if (ansible_local|d() and ansible_local.pki|d() and
+                             ansible_local.pki.hooks|d())
+                         else "/etc/pki/hooks" }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__pki_hook_action [[[
+#
+# Specify how changes in PKI should affect ejabberd, either 'reload' or 'restart'.
+ejabberd__pki_hook_action: 'reload'
+                                                                   # ]]]
+                                                                   # ]]]
+# Ejabberd Configuration [[[
+# -------------------------
+
+# .. envvar:: ejabberd_loglevel [[[
+#
+## 0: No ejabberd log at all (not recommended)
+## 1: Critical, 2: Error, 3: Warning, 4: Info, 5: Debug
+ejabberd_loglevel: 3
+
+                                                                   # ]]]
+# .. envvar:: ejabberd_hide_sensitive_log_data [[[
+#
+# Strongly recommended
+ejabberd_hide_sensitive_log_data: true
+
+                                                                   # ]]]
+#
+# TODO:
+ejabberd_hosts_config: {}
+
+# .. envvar:: ejabberd__default_modules [[[
+#
+# Modules that are loaded for each of the features.
+# TODO: Rethink name of this variable
+# TODO: Put all module into the correct group, rethink groups
+ejabberd__default_modules:
+  basic:
+    - mod_adhoc       # XEP-0050: Ad-Hoc Commands
+    - mod_admin_extra
+    - mod_announce    # Manage announcements
+    - mod_avatar
+    - mod_block_strangers
+    - mod_blocking    # XEP-0191: Simple Communications Blocking
+    # mod_bosh         #  XEP-0124 XEP-0206: XMPP-over-HTTP
+    - mod_caps
+    - mod_carboncopy
+    - mod_client_state
+    - mod_configure
+    # mod_delegation   # for xep0356 #+
+    - mod_disco       # XEP-0030: Service Discovery
+    # You should not use mod_fail2ban behind a proxy
+    - mod_fail2ban    # Bans IPs that show the malicious signs
+    # mod_http_fileserver
+    # mod_last        # disabled for privacy
+    - mod_mam         # XEP-0313: Message Archive Management
+    # mod_multicast
+    - mod_offline     # XEP-0160: Offline message storage
+    - mod_ping        # XEP-0199: XMPP Ping and periodic keepalives
+    - mod_pres_counter # Detect presence subscription flood
+    - mod_privacy     # XEP-0016: Blocking Communication
+    - mod_private     # XEP-0049: Private XML Storage
+    # mod_proxy65
+    - mod_pubsub
+    - mod_push
+    - mod_push_keepalive
+    - mod_roster
+    - mod_s2s_dialback
+    - mod_shared_roster
+    - mod_sic
+    - mod_stats
+    - mod_stream_mgmt
+    - mod_time # XEP-0202: communicating the local time of an entity
+    - mod_version
+  muc:
+    - mod_muc         # XEP-0045: Multi-User Chat
+    - mod_muc_admin
+    # mod_muc_log
+  register:
+    - mod_register
+  register_web:
+    - mod_register_web
+  upload:
+    - mod_http_upload # XEP-0363: File exchange between users
+    - mod_http_upload_quota
+  vcard:
+    - mod_vcard
+    - mod_vcard_xupdate
+  useless:
+    - mod_echo        # no of much use in production
+  api:
+    - mod_http_api
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__modules_default_config [[[
+#
+# Default configuration for each of the modules
+# see https://docs.ejabberd.im/admin/configuration/.
+# Modules named in ``ejabberd__modules_enabled`` but not listed here
+# will be enabled with no further options (e.g.``mod_echo = {}``).
+# TODO: Review config, for the defaults mind security and privacy
+ejabberd__modules_default_config:
+    mod_announce:
+      access: announce
+    mod_disco:
+      server_info:
+        - modules: all
+          name: "abuse-addresses"
+          urls:
+            - 'mailto:{{ ejabberd__admin_mail }}'
+        - modules: all
+          name: "support-addresses"
+          urls:
+            - 'mailto:{{ ejabberd__admin_mail }}'
+        - modules: all
+          name: "admin-addresses"
+          urls:
+            - 'mailto:{{ ejabberd__admin_mail }}'
+    mod_http_upload:
+      put_url: "https://upload.@HOST@/upload"
+      docroot: "@HOME@/upload"   # FIXME: requires? useful?
+      secret_length: 40
+      #external_secret: ""   # FIXME
+    mod_http_upload_quota:
+      max_days: 30  # keep uploaded file for so many days TODO: make
+                    # this a variable
+    mod_mam:
+      # Message archive:: on per default, user/client can disable it
+      assume_mam_usage: true
+      default: always
+      request_activates_archiving: true
+    mod_muc:
+      history_size: 100   # TODO: make this a variable
+      access:
+        - allow
+      access_admin:
+        - allow: admin
+      access_create: muc_create
+      access_persistent: muc_create
+      default_room_options:
+        mam: true
+        persistent: true
+        public: false
+        public_list: false
+    mod_offline:
+      access_max_user_messages: max_user_offline_messages
+    mod_pres_counter:
+      count: 5    # TODO: rethink value
+      interval: 60
+    mod_proxy65:
+      max_connections: 5
+    mod_pubsub:
+      access_createnode: pubsub_createnode
+      ignore_pep_from_offline: true  # taken from kuketz
+      last_item_cache: false  # taken from kuketz
+      plugins:
+        - "flat"
+        - "pep"
+      force_node_config:
+        "eu.siacs.conversations.axolotl.*":
+          access_model: open
+        # Avoid buggy clients to make their bookmarks public
+        "storage:bookmarks":
+          access_model: whitelist
+    mod_register:
+      ## Only accept registration requests from the "trusted"
+      ## network (see access_rules section above).
+      ## Think twice before enabling registration from any
+      ## address. See the Jabber SPAM Manifesto for details:
+      ## https://github.com/ge0rg/jabber-spam-fighting-manifesto
+      ip_access: all
+      captcha_protected: true
+      password_strength: 64
+      access: register
+      registration_watchers:
+        - '{{ ejabberd__admin_mail }}'
+      welcome_message:
+        subject: 'Welcome to {{ejabberd__domain }}'
+        body: |-
+          {{ejabberd__domain }}
+          If you have any questions regarding this server, feel free
+          to send a m  essage to the administrator via
+          email ({{ ejabberd__admin_mail }}) or XMPP (mailto:{{ ejabberd__admin_xmpp }}).        
+    mod_register_web:
+      registration_watchers:
+        - '{{ ejabberd__admin_mail }}'
+    mod_roster:
+      versioning: true
+    mod_stream_mgmt:
+      resend_on_timeout: if_offline
+    mod_vcard:
+      search: false   # set explicitly for privacy
+    mod_version:
+      show_os: false  # for security
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__modules_enabled [[[
+#
+# Collect the modules that should be enabled, based on the featues the
+# admin selected.
+# TODO: Complete this based on the features (`…enable…`) and module-groups.
+ejabberd__modules_enabled: '{{
+   (ejabberd__default_modules["basic"] +
+    (ejabberd__default_modules["muc"] if ejabberd_enable_muc else []) +
+    (ejabberd__default_modules["register"] if ejabberd_enable_register else []) +
+    (ejabberd__default_modules["register_web"] if ejabberd_enable_register_web else []) +
+    (ejabberd__default_modules["upload"] if ejabberd_enable_upload else [])
+  ) | unique }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__insecure_domains [[[
+#
+# List of insecure domains. As example `gmail.com`
+# https://ejabberd.im/doc/s2s
+# TODO: Leftover from prosody - usefull?
+ejabberd__insecure_domains: []
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__default_config_global [[[
+#
+# Main ejabberd configuration, default values
+# see https://docs.ejabberd.im/admin/configuration/
+ejabberd__default_config_global:
+  loglevel: '{{ ejabberd_loglevel }}'
+  hide_sensitive_log_data: '{{ ejabberd_hide_sensitive_log_data }}'
+
+  log_rate_limit: 100 # TODO: get value from a variable
+
+  # FIXME: Shall these variables be calls host*s*_config or host_config?
+  hosts: '{{ ejabberd_hosts_config.keys() | list }}'
+  host_config: '{{ ejabberd_hosts_config }}'
+  certfiles:
+    - '{{ ejabberd__pki_realm_path + "/" + ejabberd__pki_realm + "/" + ejabberd__pki_crt_filename }}'
+    - '{{ ejabberd__pki_realm_path + "/" + ejabberd__pki_realm + "/" + ejabberd__pki_key_filename }}'
+
+  ## Disable digest-md5 SASL authentication, which requires plain-text
+  ## password storage (see auth_password_format option).
+  disable_sasl_mechanisms:
+    - "digest-md5"
+    - "x-oauth2"
+
+  # TODO: Use some variables for defining the c2s- resp. s2s-options and
+  #       use them here, so STARTTLS and TLS are configured the same.
+  #       E.g. __default_c2s_config: {module: ejabberd_c2s, …}
+  # TODO: Think about some calculated variable to allow enabling posts
+  #       based on conditions, e.g.
+  #       ejabberd_listen = '{{ [ejabberd_c2s_config] | ejabberd__unison (
+  #               [ejabberd_c2s_config_TLS if …enable_c2s_tls]) }}'
+  #       Maybe we need to implement a custom filter to remove empty elements.
+  listen:
+    - # c2s with STARTTLS
+      port: 5222
+      ip: "::"
+      starttls_required: true
+      module: ejabberd_c2s
+      max_stanza_size: 262144  ## TODO rethink value, required?
+      shaper: c2s_shaper
+      access: c2s
+      #protocol_options: '{{ ejabberd_default_tls_options }}'  # TODO: need to repeat here?
+
+    - # c2s with direct TLS  TODO: Only if requested
+      port: 5223
+      ip: "::"
+      tls: true
+      module: ejabberd_c2s
+      max_stanza_size: 262144  ## TODO rethink value, required?
+      shaper: c2s_shaper
+      access: c2s
+      #protocol_options: '{{ ejabberd_default_tls_options }}'  # TODO: need to repeat here?
+
+    - # s2s with STARTTLS
+      port: 5269
+      ip: "::"
+      module: ejabberd_s2s_in
+      max_stanza_size: 524288  ## TODO rethink value, required?
+
+    - # s2s with direct TLS  TODO: Only if requested
+      port: 5270
+      tls: true
+      ip: "::"
+      module: ejabberd_s2s_in
+      max_stanza_size: 524288  ## TODO rethink value, required?
+
+    # TODO: Enable only if api, bosh, upload, ws or register_web is enabled
+    - port: '{{ 5080 if ejabberd__http_behind_proxy else 5443 }}'
+      ip: '{{ "::1" if ejabberd__http_behind_proxy else "::" }}'
+      tls: '{{ false if ejabberd__http_behind_proxy else true }}'
+      module: ejabberd_http
+      request_handlers: 
+        "/upload": mod_http_upload  # FIXME: Only if upload_enabled
+        # FIXME: Add as required
+        # "/api": mod_http_api
+        # XMPP-over-HTTP
+        #"/bosh": mod_bosh
+        #"/ws": ejabberd_http_ws
+        #"/account": mod_register_web
+      #register: true
+      captcha: true
+      protocol_options: '{{ ejabberd_default_tls_options }}'
+      ciphers: '{{ ejabberd_default_tls_ciphers }}'    ## TODO required here?
+      web_admin: false
+  
+  ## Store the plain passwords or hashed for SCRAM:
+  auth_method: internal   # TODO
+  auth_password_format: scram
+
+  ## Full path to a script that generates the image.
+  captcha_cmd: "/usr/share/ejabberd/captcha.sh"
+  captcha_host: "xmpp.{{ ejabberd__domain }}"  # TODO!
+  captcha_limit: 10   # TODO: Rethink value, some examples allow only 5
+  
+  acl:
+    admin:
+       user:
+         - 'admin: {{ ejabberd__domain }}'
+    local:
+      user_regexp: ""
+    loopback:
+      ip:
+        - "127.0.0.0/8"
+        - "::1/128"
+        - "::FFFF:127.0.0.1/128"
+  
+  access_rules:
+    local:
+      - allow: local
+    c2s:
+      - deny: blocked
+      - allow
+    announce:
+      - allow: admin
+    configure:
+      - allow: admin
+    muc_create:
+      - allow: local
+    pubsub_createnode:
+      - allow: local
+    register:
+      - allow
+    trusted_network:
+      - allow: loopback
+  
+  api_permissions:
+    "console commands":
+      from:
+        - ejabberd_ctl
+      who: all
+      what: "*"
+    "admin access":
+      who:
+        - access:
+            - allow:
+              - acl: loopback
+              - acl: admin
+        - oauth:
+          - scope: "ejabberd:admin"
+          - access:
+            - allow:
+              - acl: loopback
+              - acl: admin
+      what:
+        - "*"
+        - "!stop"
+        - "!start"
+    "public commands":
+      who:
+        - ip: "127.0.0.1/8"
+      what:
+        - "status"
+        - "connected_users_number"
+  
+  
+  # traffic shaping
+  
+  #max_fsm_queue: 10000  # TODO Think about
+  
+  shaper:
+    normal: 1000
+    fast: 50000
+  
+  shaper_rules:
+    max_user_sessions: 10
+    max_user_offline_messages:
+      - 5000: admin
+      - 500
+    c2s_shaper:
+      - none: admin
+      - normal
+    s2s_shaper: fast
+  
+  language: "en"   # TODO get this from a variable
+  
+  modules: |
+    {%- set cfg = [] %}
+    {%- for mod in ejabberd__modules_enabled -%}
+        {%- set _ = cfg.append((mod, ejabberd__modules_default_config[mod]|d({}))) -%}
+    {%- endfor -%}
+    {%- set cfg = dict(cfg) %}
+    {{ cfg }}
+  
+  allow_contrib_modules: true
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__config_global [[[
+#
+# Mapping for global configs which will be managed on all hosts in
+# the Ansible inventory.
+ejabberd__config_global: {}
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__group_config_global [[[
+#
+# Mapping for global configs which will be managed on specific groups in
+# the Ansible inventory.
+ejabberd__group_config_global: {}
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__host_config_global [[[
+#
+# Mapping for global configs which will be managed on specific hosts in
+# the Ansible inventory.
+ejabberd__host_config_global: {}
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__combined_config_gloabl [[[
+#
+# Mapping which combines all of the global config variables and is used
+# in the configuration template.
+ejabberd__combined_config_global: '{{ ejabberd__default_config_global | combine(
+                                ejabberd__default_tls_config,
+                                ejabberd__config_global,
+                                ejabberd__group_config_global,
+                                ejabberd__host_config_global,
+                                ejabberd__enforced_config_global ) }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__http_upload [[[
+#
+#  http_upload enables upload via http(s) for clients to share files
+#  https://modules.ejabberd.im/mod_http_upload.html
+#  XEP-0363
+ejabberd__http_upload: True
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__muc [[[
+#
+#  muc (multi user channel) enables group channel function.
+#  https://ejabberd.im/doc/modules/mod_muc
+#  XEP-0045
+ejabberd__muc: True
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__default_config_components [[[
+#
+# List of default components
+ejabberd__default_config_components: '{{ (ejabberd__config_http_upload if ejabberd__http_upload|bool else [])
+                                      + (ejabberd__config_muc if ejabberd__muc|bool else []) }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__config_components [[[
+#
+# List of components which will be managed on all hosts in the Ansible
+# inventory.
+ejabberd__config_components: []
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__group_config_components [[[
+#
+# List of components which will be managed on specific groups in the Ansible
+# inventory.
+ejabberd__group_config_components: []
+
+                                                                   # ]]]
+# .. envvar:: ejabberd__host_config_components [[[
+#
+# List of components which will be managed on specific hosts in the Ansible
+# inventory.
+ejabberd__host_config_components: []
+
+                                                                   # ]]]
+
+##### FIXME Shall these names use "tls" or "ssl"?
+                                                                   
+# .. envvar:: ejabberd_tls_dhparam [[[
+#
+# Path to the file with Diffie-Hellman parameters to use by the webserver.
+ejabberd_tls_dhparam: '{{ (ansible_local.dhparam[ejabberd_tls_dhparam_set]
+                        if (ansible_local|d() and ansible_local.dhparam|d() and
+                            ansible_local.dhparam[ejabberd_tls_dhparam_set]|d())
+                        else "") }}'
+
+                                                                   # ]]]
+# .. envvar:: ejabberd_tls_dhparam_set [[[
+#
+# Name of the ``dhparam`` set to use.
+ejabberd_tls_dhparam_set: 'default'
+
+                                                                   # ]]]
+
+# TODO: Check these for security
+ejabberd_default_tls_ciphers: >-
+  HIGH+kEDH:HIGH+kEECDH:HIGH:!PSK:!SRP:!3DES:!aNULL
+
+ejabberd_default_tls_options:
+  - "no_sslv3"
+  - "no_tlsv1"
+  - "no_tlsv1_1"
+  - "cipher_server_preference"
+  - "no_compression"
+
+
+ejabberd__default_tls_config:
+  c2s_ciphers: '{{ ejabberd_default_tls_ciphers }}'
+  s2s_ciphers: '{{ ejabberd_default_tls_ciphers }}'
+  c2s_protocol_options: '{{ ejabberd_default_tls_options }}'
+  s2s_protocol_options: '{{ ejabberd_default_tls_options }}'
+  c2s_dhfile: '{{ ejabberd_tls_dhparam }}'
+  s2s_dhfile: '{{ ejabberd_tls_dhparam }}'
+  s2s_use_starttls: required  # why here and not at listen ejabberd_s2s_in?
+
+ejabberd__enforced_config_global:
+  ## Disable ejabberd's internal log rotation, as the Debian package
+  ## uses logrotate(8).
+  log_rotate_count: 0
+  log_rotate_date: ""
+
+
+# Configuration for other Ansible roles [[[
+# -----------------------------------------
+
+# .. envvar:: ejabberd__apt_preferences__dependent_list [[[
+#
+# Configuration for the :ref:`debops.apt_preferences` Ansible role.
+ejabberd__apt_preferences__dependent_list:
+
+  - packages: ['ejabberd', "erlang-*"]
+    backports: [ 'stretch' ]
+    reason:  'Version parity with Debian Buster'
+    by_role: 'debops.ejabberd'
+                                                                   # ]]]
+
+# .. envvar:: ejabberd__ferm__default_rules [[[
+ejabberd__ferm__default_rules:
+
+  # TODO depend on the ports actually used
+  - type: 'accept'
+    dport: [ '5222' ]
+    accept_any: True
+    weight: '40'
+    by_role: 'ejabberd'
+    name: 'ejabberd-xmpp-client'
+    multiport: True
+    rule_state: '{{ ejabberd__deploy_state }}'
+  - type: 'accept'
+    dport: [ '5269' ]
+    accept_any: True
+    weight: '40'
+    by_role: 'ejabberd'
+    name: 'ejabberd-xmpp-server'
+    multiport: True
+    rule_state: '{{ ejabberd__deploy_state }}'
+  - type: 'accept'
+    dport: [ '5280', '5281' ]
+    accept_any: True
+    weight: '40'
+    by_role: 'ejabberd'
+    name: 'ejabberd-http'
+    multiport: True
+    rule_state: '{{ ejabberd__deploy_state }}'
+                                                                   # ]]]
+
+# .. envvar:: ejabberd__ferm__tls_rules [[[
+# TODO: Rethink whether we actually shall have extra rules for the TLS
+# ports or merge them into the non-TLS rules.
+# TODO: Add rule got XMPP-over-HTTP if not behind proxy
+ejabberd__ferm__tls_rules:
+
+  - type: 'accept'
+    dport: [ '5223' ]
+    accept_any: True
+    weight: '40'
+    by_role: 'ejabberd'
+    name: 'ejabberd-xmpps-client'
+    multiport: True
+    rule_state: '{{ ejabberd__deploy_state }}'
+  - type: 'accept'
+    dport: [ '5270' ]
+    accept_any: True
+    weight: '40'
+    by_role: 'ejabberd'
+    name: 'ejabberd-xmpps-server'
+    multiport: True
+    rule_state: '{{ ejabberd__deploy_state }}'
+                                                                   # ]]]
+
+# .. envvar:: ejabberd__ferm__dependent_rules [[[
+#
+# Configuration for :command:`iptables` firewall manged by :program:`ferm`.
+ejabberd__ferm__dependent_rules: >-
+  '{{ ejabberd__ferm__default_rules | 
+      combine(
+         ejabberd__ferm__tls_rules if (ejabberd__pki|d()) else {}) }}'
+
+                                                                   # ]]]
+                                                                   # ]]]
+                                                                   # ]]]

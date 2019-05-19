@@ -82,4 +82,6 @@
 
 - import_playbook: prosody.yml
 
+- import_playbook: ejabberd.yml
+
 - import_playbook: freeradius.yml

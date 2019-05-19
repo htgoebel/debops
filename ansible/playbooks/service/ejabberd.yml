@@ -1,0 +1,23 @@
+---
+
+- name: Manage ejabberd XMPP server
+  hosts: [ 'debops_service_ejabberd' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  roles:
+    - role: debops.apt_preferences
+      tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
+      apt_preferences__dependent_list:
+        - '{{ ejabberd__apt_preferences__dependent_list }}'
+
+    - role: debops.ferm
+      tags: [ 'role::ferm', 'skip::ferm' ]
+      ferm__dependent_rules:
+        - '{{ ejabberd__ferm__dependent_rules }}'
+
+    - role: debops.ejabberd
+      tags: [ 'role::ejabberd', 'skip::ejabberd' ]

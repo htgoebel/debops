@@ -1,0 +1,18 @@
+# -*- indent-tabs-mode: nil -*-
+---
+
+- name: 'Reload systemd'
+  systemd:
+    daemon-reload: yes
+
+- name: 'Restart Erlang epmd'
+  service:
+    name: 'epmd'
+    state: 'restarted'
+
+- name: 'Restart ejabberd'
+  service:
+    name: 'ejabberd'
+    state: 'restarted'
+
+  # todo: restart epmd.socket and epmd.service

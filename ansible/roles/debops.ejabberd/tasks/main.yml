@@ -1,0 +1,95 @@
+# -*- indent-tabs-mode: nil -*-
+---
+
+# Setting ERL_EPMD_ADDRESS in /etc/defaults/ejabberd is not enough to
+# make epmd listen on localhost since epmd is started via systemd.
+# Thus create a systemd socket file to configure the socket.
+# TODO: Check if this will still be necessary for Debian 10 (Buster), as
+# a patch for listening on the loopback interface only has been applied,
+# see <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=709754#58>.
+- name: Create systemd directory epmd.socket.d
+  file:
+    path: '/etc/systemd/system/epmd.socket.d'
+    state: directory
+
+- name: Configure the Erlang Port Mapper Daemon (epmd) socket
+  # Create this file prior to installing erlang so it will be used
+  # already when epmd is started the first time (by apt install).
+  copy:
+    dest: '/etc/systemd/system/epmd.socket.d/listen-on-localhost.conf'
+    content: |
+      [Socket]
+      # unset all ports defined in the global epmd.socket file
+      ListenStream=
+      # add only localhost (need to specify both ipv4 and ipv6 due to
+      # restrictions/shortcommings in systemd)
+      {{ ansible_all_ipv4_addresses|d([]) and "ListenStream=127.0.0.1:4369" }}
+      {{ ansible_all_ipv6_addresses|d([]) and "ListenStream=[::1]:4369" }}
+  notify: [ 'Reload systemd', 'Restart Erlang epmd' ]
+
+- name: Install required packages
+  package:
+    name: '{{ item }}'
+    state: 'present'
+  with_flattened:
+    - '{{ ejabberd__base_packages }}'
+    - '{{ ejabberd__packages }}'
+  register: ejabberd__register_packages
+  until: ejabberd__register_packages is succeeded
+
+- name: Configure ejabberd erlang environment to use loopback only
+  # TODO: Check how to configure this correctly for IPv6 if IPv4 is not available
+  lineinfile:
+    dest: '/etc/ejabberd/ejabberdctl.cfg'
+    line: '{{ item.key }}={{ item.value }}'
+    regexp: '^#?\s*{{ item.key }}='
+  with_dict:
+    INET_DIST_INTERFACE: 127.0.0.1
+    ERL_EPMD_ADDRESS: 127.0.0.1  # safety belt if started via ejabberdctl
+  notify: [ 'Restart ejabberd' ]
+
+- name: Remove dummy certificate to avoid confusion
+  file:
+    path: '/etc/ejabberd/ejabberd.pem'
+    state: absent
+    force: true
+
+- name: Generate ejabberd configuration
+  template:
+    src: 'etc/ejabberd/ejabberd.yml.j2'
+    dest: '/etc/ejabberd/ejabberd.yml'
+  notify: [ 'Restart ejabberd' ]
+
+- name: Enable ejabberd service
+  # epmd will be started by systemd when ejabberd is started
+  service:
+    name: 'ejabberd'
+    enabled: 'yes'
+    state: 'started'
+
+
+## PKI integration
+
+- name: Make sure that PKI hook directory exists
+  file:
+    path: '{{ ejabberd__pki_hook_path }}'
+    state: 'directory'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  when: (ejabberd__pki|bool and ejabberd__deploy_state in [ 'present' ])
+
+- name: Manage PKI hook for ejabberd
+  template:
+    src: 'etc/pki/hooks/ejabberd.j2'
+    dest: '{{ ejabberd__pki_hook_path + "/" + ejabberd__pki_hook_name }}'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  when: (ejabberd__pki|bool and ejabberd__deploy_state in [ 'present' ])
+
+- name: Ensure the PKI ejabberd hook is absent
+  file:
+    path: '{{ ejabberd__pki_hook_path }}'
+    state: 'absent'
+  when: (ejabberd__deploy_state in [ 'absent' ])

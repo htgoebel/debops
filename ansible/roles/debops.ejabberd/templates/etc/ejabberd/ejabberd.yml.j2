@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+{% import 'templates/import/debops__tpl_macros.j2' as debops__tpl_macros with context %}
+
+{{ ejabberd__combined_config_global | to_nice_yaml }}
