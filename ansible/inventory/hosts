@@ -1,0 +1,5 @@
+[debops_service_ejabberd]
+test-server
+
+[debops_all_hosts]
+test-server

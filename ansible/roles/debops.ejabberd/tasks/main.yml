@@ -58,7 +58,19 @@
   template:
     src: 'etc/ejabberd/ejabberd.yml.j2'
     dest: '/etc/ejabberd/ejabberd.yml'
+    backup: true  # TODO remove this
   notify: [ 'Restart ejabberd' ]
+  tags:
+    - config  ## TODO: remove this
+
+# FIXME: remove this - for testing only
+- name: Fetch generated ejabberd configuration
+  fetch:
+    src: '/etc/ejabberd/ejabberd.yml'
+    dest: '/tmp/ejabberd.yml'
+    flat: True
+  tags:
+    - config
 
 - name: Enable ejabberd service
   # epmd will be started by systemd when ejabberd is started

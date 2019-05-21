@@ -1,0 +1,118 @@
+Quick Start
+==================
+
+Hopefully this is enough :-)
+
+1) Use and adopt to your needs one of the Vagrantfiles provided by
+   https://github.com/debops/examples. Suggested to use either
+   vagrant-docker or vagrant-ansible-single-machine.
+
+   Change the Vagrantfile to use Debian 9 (stretch).
+
+   Server shall be named "test-server".
+
+2) Install vagant and plugin "vai"
+
+3) Install ansible and debops
+
+   a) When using a Python virtualenv, e.g.
+        python3 -m venv --system-site-packages /tmp/myvenv
+        . /tmp/myvenv/bin/activate
+        pip3 install --update pip ansible netaddr
+        pip3 install --update -e .
+      
+   b) When *not* using a Python virtualenv:
+
+        pip3 install --user --update ansible netaddr
+	pip3 install --user --update -e .
+
+
+4) Ready for testing :-)
+
+Test-data includes ansible/inventory which hopefully is appropriate.
+
+Test-cycle::
+
+   vagrant destroy --force ; vagrant up ; vagrant provision
+
+   # For quick testin run only th bare minimum playbooks. In production
+   # one would run the `common` playbook.
+   debops service/apt service/pki service/dhparam --limit=test-server
+
+   debops ejabberd --limit=test-server
+
+   # For config-changes only
+   debops ejabberd --limit=test-server --tags=config
+
+   diff -bBU ./ejabberd-stretch.nice.yml  /tmp/ejabberd.yml
+
+
+Todo
+==============
+
+Add entries to /etc/service to ease debugging (``ss -ltp``)
+----------------------------------------------------------------
+
+in defaults/main.yml::
+
+# .. envvar:: ejabberd__etc_services__dependent_list [[[
+#
+# Configuration for the :ref:`debops.apt_preferences` Ansible role.
+ejabberd__etc_services__dependent_list:
+  - name: 'xmpp-client-tls'
+    port: '5223'
+                                                                   # ]]]
+
+xmpp-client-tls tcp/5223 xmpps-client jabber-client-tls
+xmpp-server-tls tcp/5223 xmpps-server jabber-server-tls
+
+In playbook::
+
+
+    - role: debops.etc_services
+      tags: [ 'role::etc_services' ]
+      etc_services__dependent_list:
+        - '{{ apt_cacher_ng__etc_services__dependent_list }}'
+
+Put XMPP-over-HTTP behind nginx
+-------------------------------------
+
+If requested to do so, create th appropriate config like this:
+
+in defaults/main.yml::
+
+# .. envvar:: gitlab__nginx__dependent_upstreams [[[
+#
+# List of :command:`nginx` upstreams for the :ref:`debops.nginx` Ansible role.
+ejabberd__nginx__dependent_upstreams:
+
+  # Upstream configuration for the ``gitlab-workhorse`` used in GitLab 8.2+
+  - name: 'ejabberd-xmpp-over-http'
+    server: '127.0.0.1:5080'  # FIXME make port a variable # FIXME IPv6
+
+                                                                   # ]]]
+# .. envvar:: gitlab__nginx__dependent_servers [[[
+#
+# List of :command:`nginx` servers for the :ref:`debops.nginx` Ansible role.
+ejabberd__nginx__dependent_servers:
+     - name: [ '{{ XXX }}' ]  # FIXME
+       location_list: '{{ ejabbers_default_location_list }}'  # FIXME
+       enabled: True
+       default: False
+       favicon: False
+       options: |
+         client_max_body_size 0; # unlimited  # FIXME add options as required
+
+                                                                   # ]]]
+
+In playbook::
+
+    - role: debops.nginx
+      tags: [ 'role::nginx', 'skip::nginx' ]
+      nginx__dependent_servers:
+        - '{{ ejabberd__nginx__dependent_servers }}'
+      nginx__dependent_upstreams:
+        - '{{ ejabberd__nginx__dependent_upstreams }}'
+
+FIXME: Run role debops.nginx only of required (= if XMPP-over-HTTP
+behind nginx is requested)
